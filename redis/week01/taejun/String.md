@@ -1,4 +1,4 @@
-## [1] String
+## String
 - 512MB가 최대이다.
 - Redis가 제공하는 가장 기본적인 DataType이다.
 - BinarySafe하다. (모든 데이터를 저장 할 수 있다.)

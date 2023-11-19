@@ -1,4 +1,4 @@
-## [3] List
+## List
 - String들의 리스트
 - 순서가 지정된 요소들의 Sequence
 - LinkedList이기 때문에, Index를 통한 접근은 올바르지 않다.
