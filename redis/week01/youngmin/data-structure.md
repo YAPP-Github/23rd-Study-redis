@@ -140,3 +140,15 @@
 - 임의의 비트 길이의 정수 값을 set, increment, get할 수 있음
   - 1bit unsigned 정수부터 63bit signed 정수까지 가능
 - atomic read, write, increment operations 지원 (counter로 사용하기 좋음)
+
+## HyperLogLog
+
+- 집합의 카디널리티를 추정하는 확률적 데이터 구조
+- 효율적인 공간 활용을 위해 완벽한 정확도를 희생
+- Redis HyperLogLog 구현은 최대 12KB를 사용하며 0.81%의 표준 오류를 제공함
+- HLL API는 [Set](#Set)과 유사함
+  - 데이터 구조에는 실제 요소가 포함되지 않고, 상태만 포함
+- 서로 다른 두 개의 HLL을 병합해야 하는 경우 `PFMERGE` 명령을 사용할 수 있음
+- 주 용도
+  - 웹 페이지의 익명 고유 방문 횟수(IP 주소나 기타 개인 식별자를 저장하는 것은 일부 국가에서는 법에 위배되므로 유용)
+  - 최대 cardinality는 2^64
