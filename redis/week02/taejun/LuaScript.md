@@ -82,25 +82,26 @@ KEYS와 ARGV 변수를 넘기기 이전에 존재하는 숫자는 KEYS배열의 
 ### 사용예시 (Redisson)
 
 - tryLock
-
-- Hash 자료구조 사용
-    - LockKey가 존재하지 않음(최초진입)  OR Hash내에 Value가 존재 (Reentrant) 할 때만
-        - hincrby → Reentrant Count 증가
-        - Expire지정
-        - Lock을 정상적으로 설정했다면 nil리리턴
-            - 보통 nil은 조건에 만족하는 요소가 없을 경우를 나타내지만, 구현별로 조건분기를 위해서 사용할 때도 있다.
+    - <img width="998" alt="스크린샷 2023-11-26 오후 3 29 36" src="https://github.com/ktj1997/TIL/assets/57896918/d8dc99d5-282e-40de-8542-c691a4a4de3a">
+    - Hash 자료구조 사용
+          - LockKey가 존재하지 않음(최초진입)  OR Hash내에 Value가 존재 (Reentrant) 할 때만
+              - hincrby → Reentrant Count 증가
+              - Expire지정
+              - Lock을 정상적으로 설정했다면 nil리리턴
+                  - 보통 nil은 조건에 만족하는 요소가 없을 경우를 나타내지만, 구현별로 조건분기를 위해서 사용할 때도 있다.
     - Lock을 얻지못했다면, Lock의 남은 만료시간을 조회
 
 - unLock
-    - key가 존재하지 않거나, hash에도 존재하지 않으면 그대로 리턴
-    - LockCount—
-    - LockCount가 0보다 크다면,
-        - 다시 기본 expire로 설정
-        - set (MetaData성? 의미모르겠음)
-    - LockCount가 0이라면
-        - key 삭제
-        - UnLock Message Publish
-        - set (MetaData성? 의미모르겠음)
+  - <img width="565" alt="스크린샷 2023-11-26 오후 4 21 35" src="https://github.com/ktj1997/TIL/assets/57896918/dce48450-9cd5-4bf5-bfcd-d2733db19144">
+  - key가 존재하지 않거나, hash에도 존재하지 않으면 그대로 리턴
+      - LockCount—
+      - LockCount가 0보다 크다면,
+          - 다시 기본 expire로 설정
+          - set (MetaData성? 의미모르겠음)
+  - LockCount가 0이라면
+      - key 삭제
+      - UnLock Message Publish
+      - set (MetaData성? 의미모르겠음)
 
 ### EVAL vs EVALSHA vs SCRIPT LOAD
 
