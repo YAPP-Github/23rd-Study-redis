@@ -88,15 +88,91 @@ hel* world
 ## Redis programmability
 - Lua와 Redis Function을 통해 프로그래밍 인터페이스를 제공한다.
 - Redis 7 이상에서는 Redis Function을, 6.2 이하에서는 Lua Scripting with Eval command를 사용할 수 있다.
-### Running Scripting
-#### EVAL command (Redis 2.6.0~)
+### Lua Scripting (Redis 2.6.0~)
+#### EVAL command
 - server-side scripts를 돌릴 수 있다
 - 반드시 소스 코드를 갖고 있어야 한다.
 - script는 서버에만 캐시로 저장되며 휘발성이기 때문이다.
 - 이는 어플리케이션이 커질수록 개발과 유지보수를 힘들게 만든다.
-#### Redis Function (Redis 7~)
+첫번째 인자는 Lua source code, 두번째 인자는 스크립트에 뒤따르는 인자의 개수, 그 뒤는 전달되는 레디스 키의 개수이다.
+#### Scripting parameterization
+```
+redis> EVAL "return ARGV[1]" 0 Hello
+"Hello"
+redis> EVAL "return ARGV[1]" 0 Parameterization!
+"Parameterization!"
+
+redis> EVAL "return { KEYS[1], KEYS[2], ARGV[1], ARGV[2], ARGV[3] }" 2 key1 key2 arg1 arg2 arg3
+1) "key1"
+2) "key2"
+3) "arg1"
+4) "arg2"
+5) "arg3"
+```
+ARGV를 통해 받은 인자 사용, KEY를 통해 받은 redis key를 사용할 수 있다. 두번째 인자는 받을 redis key의 개수를 나타낸다.
+#### Interacting with Redis from a script
+```
+> EVAL "return redis.call('SET', KEYS[1], ARGV[1])" 1 foo bar
+OK
+```
+- redis.call() 혹은 redis.pcall()을 통해 Redis commands를 호출할 수 있다.
+  - redis.call(): 런타임 에러가 클라이언트에게 전달됨 
+  - redis.pcall(): 런타임 에러가 스크립트에 전달됨
+  
+#### Script Cache
+- EVAL을 사용할 때, 항상 script code를 포함한다.
+- 계속해서 같은 코드를 포함하는 것은 비효율적이기 때문에, Redis에서는 script cache를 제공한다.
+- EVAL로 실행하는 모든 script는 cache에 저장된다.
+- SCRIPT LOAD command와 그 소스 코드를 이용해 SHA1 digest를 얻을 수 있다.
+- EVALSHA SHA1 digest를 통해 캐싱된 스크립트를 실행 가능하다.
+- Redis Script Cache는 휘발성이기 때문에, 서버 재시작, SCRIPT FLUSH 등 다양한 이유로 언제든 사라질 수 있다.
+```
+redis> SCRIPT LOAD "return 'Immabe a cached script'"
+"c664a3bf70bd1d45c4284ffebb65a6f2299bfc9f"
+redis> EVALSHA c664a3bf70bd1d45c4284ffebb65a6f2299bfc9f 0
+"Immabe a cached script"
+```
+
+#### SCRIPT Commands
+##### SCRIPT FLUSH
+Redis cache에 저장된 모든 script를 지운다. 보통 Redis instance를 다른 유저에게 할당할 때 유용하다.
+##### SCRIPT EXISTS
+SHA1 digests를 인자로 받아 캐시에 존재하는 script인지 아닌지를 1, 0으로 리턴한다
+##### SCRIPT Load script
+script를 cache에 등록한다.
+##### SCRIPT KILL
+long-running script를 멈춘다.
+##### SCRIPT DEBUG
+script를 디버그한다.
+
+### Redis Function (Redis 7~)
 - script를 어플리케이션과 분리해서 script의 독자적인 개발, 테스팅, 그리고 배포를 가능케 한다.
 - function을 사용하기 위해, load만 하면 된다.
+#### atomic execution
+- script나 function을 실행하면, 레디스는 원자성을 보장한다.
+- 실행동안 서버는 block 된다.
+- 트랜잭션과 비슷한 의미를 갖는데, 일어나거나 아무 일도 일어나지 않거나.
+- 때문에 느린 스크립트를 사용하려 하면 다른 클라이언트가 모두 block된다는 점을 유의해야 한다.
+#### Loading function
+```
+FUNCTION LOAD "#!lua<engine name> name=<library name>"
+```
+library payload는 Shebang format을 따라야 한다.
+#### Registering function
+```
+#!lua name=mylib
+redis.register_function(
+  'knockknock',
+  function() return 'Who\'s there?' end
+)
+```
+#### Calling function
+```
+redis> FUNCTION LOAD "#!lua name=mylib\nredis.register_function('knockknock', function() return 'Who\\'s there?' end)"
+mylib
+redis> FCALL knockknock 0
+"Who's there?"
+```
 #### atomic execution
 - script나 function을 실행하면, 레디스는 원자성을 보장한다.
 - 실행동안 서버는 block 된다.
