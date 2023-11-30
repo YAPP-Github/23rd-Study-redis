@@ -80,6 +80,21 @@ QUEUED
 - EXEC을 실행하면 묵시적으로 UNWATCH가 실행된다.
 
 ```
+val = GET mykey
+val = val + 1
+SET mykey $val
+
+---------------
+
+WATCH mykey
+val = GET mykey
+val = val + 1
+MULTI
+SET mykey $val
+EXEC
+```
+
+```
 127.0.0.1:6379> watch chicken
 OK
 127.0.0.1:6379> set chicken kyochon   //트랜잭션 외부
