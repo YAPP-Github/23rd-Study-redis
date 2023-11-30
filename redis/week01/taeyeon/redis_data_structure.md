@@ -519,3 +519,87 @@ Redis 스트림 사용 사례
 - 로깅
 
 Redis는 각 스트림 항목에 대해 시간과 관련된 고유 `ID`를 생성한다. `ID`를 사용하여 나중에 관련 항목을 검색하거나 소비 할 수 있다.
+
+# HyperLogLog
+
+`HyperLogLog`는 `Sets`과 동일하게 순서와 상관없이 중복되지 않는 데이터들의 카디널리티를 추정하는 확률적 데이터 구조이다.
+
+[HLL 알고리즘](https://d2.naver.com/helloworld/711301)을 사용하여 최대 12KB의 적은 메모리 사용량과 함께 $0.81%$의 표준 오류가 발생 할 수 있다.
+
+기술적으로는 다른 데이터 구조이지만 `HLL`은 `String`으로 인코딩되기 때문에 값을 직렬화하고 SET을 호출하여 값을 확인 할 수도 있다.
+
+이러한 특성을 바탕으로 정확성은 조금 떨어져도 효율적으로 카디널리티 측정이 필요한 상황에서 사용 하면 좋다. (counter)
+- 페이지 방문자 수
+- 요청 사용자 수
+- 특정 구간을 지나간 차량 수
+
+```java
+@Test
+void HLL_생성_테스트() {
+    // given
+    var syncConnection = RedisConnectionProvider.getSync();
+    syncConnection.pfadd("endpoint:/admin", "user:1", "user:2", "user:3");
+
+    // when
+    long count = syncConnection.pfcount("endpoint:/admin");
+
+    // then
+    assertThat(count).isEqualTo(3);
+}
+
+@Test
+void HLL_MERGE_테스트() {
+    // given
+    var syncConnection = RedisConnectionProvider.getSync();
+    syncConnection.pfadd("endpoint:/admin/move", "user:1", "user:2", "user:3", "user:4");
+    syncConnection.pfadd("endpoint:/admin/enroll", "user:1", "user:2");
+    syncConnection.pfadd("endpoint:/admin/remove", "user:3", "user:4", "user:5");
+
+    // when
+    syncConnection.pfmerge( "endpoint:/admin", "endpoint:/admin/enroll", "endpoint:/admin/remove");
+
+    // then
+    long count = syncConnection.pfcount("endpoint:/admin");
+    assertThat(count).isEqualTo(5);
+}
+```
+
+`SET`과 성능 및 메모리 비교
+```java
+@Test
+void SET과_성능_비교() {
+    // given
+    var syncConnection = RedisConnectionProvider.getSync();
+
+    // when
+    Long setTime = timeRater(() -> {
+        for (int i = 0; i < 10000; i++) {
+            syncConnection.sadd("user:online:set", "user:" + i);
+        }
+        return syncConnection.scard("user:online");
+    });
+
+    Long hllTime = timeRater(() -> {
+        for (int i = 0; i < 10000; i++) {
+            syncConnection.pfadd("user:online:hll", "user:" + i);
+        }
+        return syncConnection.pfcount("user:online:hll");
+    });
+
+    // then
+    Long setMemory = syncConnection.memoryUsage("user:online:set");
+    Long hllMemory = syncConnection.memoryUsage("user:online:hll");
+    System.out.println("setTime = " + setTime + ", setMemory = " + setMemory);
+    System.out.println("hllTime = " + hllTime + ", hllMemory = " + hllMemory);
+//        setTime = 6557, setMemory = 596728
+//        hllTime = 6476, hllMemory = 14400
+}
+
+private Long timeRater(Supplier<?> supplier) {
+    Instant now = Instant.now();
+    supplier.get();
+    Instant after = Instant.now();
+    return Duration.between(now, after).toMillis();
+}
+```
+메모리 사용량에서 엄청 큰차이가 발생 하는 것을 확인할 수 있다.
