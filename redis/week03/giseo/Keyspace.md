@@ -93,7 +93,7 @@ int freeMemoryIfNeeded(void) {
 ### scan
 - 성능 문제가 존재하는 keys 명령어의 대안이 될 수 있는 명령어로, 논블로킹 방식으로 동작한다.
 - cusor를 기반으로 동작하는 Iterator
-- 이어지는 순회에 사용할 cursor 값과, 지정한 패턴(pattern)과 일치하는 키를 최대 지정한 갯수(count)만큼 반환한다.
+- 이어지는 순회에 사용할 cursor 값과, 지정한 패턴(pattern)과 일치하는 키를 최대 지정한 개수(count)만큼 반환한다.
 
 ```
 127.0.0.1:6379> scan 0

@@ -34,7 +34,7 @@
 
 - 레디스 클라이언트 사이드 캐싱은 트래킹(tracking) 이라 불리며, 두 가지 모드를 가진다.
 
-1. default mode
+### 1. default mode
 - 서버는 클라이언트가 액세스한 키를 기억하며, 동일한 키가 수정될 때 무효 메시지를 전송한다.
 ```
 Client 1 -> Server: CLIENT TRACKING ON
@@ -52,18 +52,18 @@ Server -> Client 1: INVALIDATE “foo”
 - default mode에서 레디스 서버는 어떤 클라이언트가 어떤 키를 저장하고 있는지를 기억하는 Invalidation Table을 생성한다.
 - 한 클라이언트에서 여기에 저장된 키를 변경하면 레디스는 그 키를 저장하고 있는 다른 클라이언트 모두에게 캐싱된 값을 삭제하라는 메시지를 보낸다.
 - Invalidation Table이 메모리를 과도하게 사용하지 않도록 레디스 6에서는 tracking-table-max-keys 라는 파라미터를 도입해 테이블에 저장가능한 최대 키의 개수를 제한한다.
-  - default는 백만개대
+  - default는 백만개
 
 ![img_4.png](img_4.png)
 
 
-2. broadcasting mode
+### 2. broadcasting mode
 - 서버는 특정 클라이언트가 액세스한 키를 기억하려고 시도하지 않으므로 서버측에서 메모리 비용이 전혀 들지 않는다. 
-  - 서버는 invalidation 테이블에 아무것도 저장하지 않는다. 대신 **Prifixes Table**에 프리픽스를 사용하는 클라이언트 목록을 저장한다.
+  - 서버는 invalidation 테이블에 아무것도 저장하지 않는다. 대신 **Prefixes Table**에 프리픽스를 사용하는 클라이언트 목록을 저장한다.
 - 대신 클라이언트는 object:, user: 와 같은 프리픽스를 구독하며, 해당 프리픽스와 일치하는 키가 변경될 때마다 메시지를 받는다.
 - 서버는 주어진 프리픽스에 가입한 모든 클라이언트에 대해 단일 회신을 보내지 않고 모든 클라이언트에게 동일한 회신을 함으로 CPU 사용량을 낮출 수 있다.
 
-
+<br><br>
 
 ## Two connections mode
 - 레디스 6에서 지원하는 레디스 프로토콜 RESP3을 사용하면 동일한 커넥션으로 데이터 쿼리를 실행하면서 동시에 무효화 메시지를 수신할 수 있다.
@@ -72,6 +72,7 @@ Server -> Client 1: INVALIDATE “foo”
   - Pub/Sub 채널에 가입된 모든 클라이언트가 수신하는 것이 아니라, client command로 지정한 커넥만이 실제로 pub/sub 메시지를 수신한다.
  ![img_5.png](img_5.png)
 
+<br><br>
 
 ## Opt-in caching
 - 클라이언트는 선택한 키만 캐시하길 원할 수 있으며, 서버에게 어떤 키를 캐시하고싶은지, 아닌지 명시할 수 있다.
@@ -89,13 +90,16 @@ GET foo
 "bar"
 ```
 
+<br><br>
+
 ## The NOLOOP option
 - Redis는 키를 수정한 클라이언트에게도 무효 메시지를 보낸다.
 - 이 옵션을 통해 클라이언트는 불필요한 무효화 메시지를 받지 않게 되어, 로컬 캐시 관리의 효율성을 높일 수 있다.
 
+<br><br>
 
 ## Avoiding race conditions
-- Two connections mode를 이용할 경우 발생할 수 있는 문제
+- 앞서 언급한 **Two connections mode**를 이용할 경우 발생할 수 있는 문제
 ```
 [D] client -> server: GET foo
 [I] server -> client: Invalidate foo (somebody else touched it)
@@ -103,6 +107,7 @@ GET foo
 ```
 - GET에 대한 응답이 지연되어 invalidate한 이전의 값을 전달받은 상황이다.
 - 이 문제를 방지하기 위해 커맨드를 보낼 때 캐시를 덧붙일 수 있다.
+
 
 ```
 Client cache: set the local copy of "foo" to "caching-in-progress"
@@ -115,12 +120,14 @@ Client cache: don't set "bar" since the entry for "foo" is missing.
 - 클라이언트는 "foo" 키에 대한 로컬 캐시 항목이 이미 삭제되었기 때문에 "bar" 값을 로컬 캐시에 저장하지 않는다.
 - 이는 무효화 메시지로 인해 "foo"에 대한 로컬 캐시가 더 이상 유효하지 않다고 간주하기 때문이다.
 
+<br><br>
 
 ## What to do when losing connection with the server
 - 무효화 메시지를 얻기 위해 사용하는 소켓과의 연결이 끊기면 오래된 데이터로 남을 수도 있다.
   - 커넥션이 끊기면 캐시 데이터를 삭제한다.
   - 무효화 채널을 주기적으로 ping한다. 응답을 받을 수 없는 경우 캐시 데이터를 삭제한다.
 
+<br><br>
 
 ## Limiting the amount of memory used by Redis
 - 각 로컬에 저장하는 키에 TTL을 설정
