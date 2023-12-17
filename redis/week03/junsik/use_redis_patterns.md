@@ -206,11 +206,3 @@ ZRANGE myindex "[spo:antirez:is-friend-of:" "[spo:antirez:is-friend-of:\xff" BYL
 ```
 
 ## Multi dimensional indexes
-
-
-## Non range indexes
-
-
-
-# Patterns examples
-
